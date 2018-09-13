@@ -1,0 +1,1051 @@
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+$  Automated data processing of VLBA data with AIPS.
+$
+$
+$ Task to run self-cal.  Runs 30 rounds of selfcal. Saves all output
+$ messages in SELFC.messages. Adds on to file if it already exists.
+$
+$ IMPORTANT: task assumes that one round of selfcal has been done. 
+$    i.e., calib has been run on split uv data, dirty image has been
+$    created, and first clean image has been created. See e.g. 
+$    BT131A1_pipe.txt for how to run these tasks.
+$
+$ To load into aips: 
+$   >version 'pwd'
+$   >run selfc
+$   >selfcal(amp,theonoise,inputdisk,splitnr,lastimg,lastfn,bcx,bcy,tcx,tcy)
+$
+$ Inputs:
+$    amp=previously measured amplitude of source in Jy
+$    theonoise=theoretical noise that should be reached based on exposure time
+$           and experiment setup. In Jy
+$    splitnr=file number of split uv data
+$    lastimage=file number of last image 
+$    lastfn=last file number in catalog
+$    bcx,bxy,tcx,tcy = bottom left and top right corners of cleaning box.
+$           Selected by examining first cleaned image.
+$
+$
+$ Created by: Alex Truebenbach
+$ Last Editted: Jan 2017
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+$Define the variables
+
+proc init_vars
+
+SCALAR inputdisk, lastimg, amp, splitnr,lastfn, i
+SCALAR theonoise,bcx,bcy,tcx,tcy, ant
+
+finish
+
+$Calibrate
+proc selfcal(amp,theonoise,inputdisk,ant,splitnr,lastimg,lastfn,bcx,bcy,tcx,tcy)
+
+
+$Print old messages and clear
+task 'prtmsg'
+docrt -1; outprint 'PWD:messages.old
+prtmsg
+clrmsg
+
+i=lastimg
+
+$measure stats on cleaned image
+task 'imstat'
+indi inputdisk
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 2, using cleaned image cat#' !! CHAR(i) !! ' as model'
+$calibrate
+default calib
+task 'calib'
+in2di inputdisk; indi inputdisk;
+outdi inputdisk;
+getn splitnr; get2n i;
+outclass 'selfc'
+smodel 0; solmode 'p'
+docalib -1; refant ant
+go
+
+waittask calib
+
+i=lastfn+1
+
+
+print 'CLEAN 2 with flux=' !! CHAR(pixstd)
+$clean image
+task 'imagr'
+default imagr
+indi inputdisk; outdi inputdisk
+getn i; cellsize 0.00009;
+imsize 512
+flux pixstd; niter 1000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 3, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)3'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 3
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 3 with flux=' !! CHAR(pixstd)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux pixstd; niter 1000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 4, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)3'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 3
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 4 with flux=' !! CHAR(pixstd)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux pixstd; niter 1000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+
+print 'CALIB 5, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 5 with flux=5xtheory =' !!CHAR(5*theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux 5*theonoise; niter 1000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+
+print 'CALIB 6, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 6 with flux=5xtheory =' !!CHAR(5*theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux 5*theonoise; niter 10000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 7, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 7 with flux=3xtheory =' !!CHAR(5*theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux 5*theonoise; niter 10000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 8, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 8 with flux=3xtheory =' !!CHAR(3*theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux 3*theonoise; niter 10000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 9, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 9 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 10000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 10, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 10 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 11, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 11 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 12, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 12 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 13, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 13 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 14, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 14 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 15, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 15 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 16, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 16 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+
+print 'CALIB 17, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 17 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 18, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 18 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 19, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 19 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 20, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 20 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+
+print 'CALIB 21, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 21 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 22, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 22 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 23, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 23 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 24, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 24 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 25, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 25 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+
+print 'CALIB 26, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 26 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+
+print 'CALIB 27, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 27 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+
+print 'CALIB 28, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 28 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 29, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 29 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+print 'CALIB 30, using cleaned image cat#' !! CHAR(i) !! ' as model'
+print 'aparm(7)5, solmode A&P'
+$calibrate
+default calib
+task 'calib'; tget calib
+getn (i-2); get2n i;
+outclass 'selfc'; aparm(7) 5
+smodel 0; solmode 'a&p'
+docalib -1;
+go
+
+waittask calib
+
+i=i+1
+
+print 'CLEAN 30 with flux=theory =' !!CHAR(theonoise)
+$clean image
+task 'imagr'
+tget imagr; getn i
+flux theonoise; niter 100000; dotv -1;
+clbox bcx,bcy,tcx,tcy; nboxes 1
+go
+
+waittask imagr
+
+i=i+2
+
+
+$measure stats on cleaned image
+task 'imstat'
+getn i
+blc 46 41; trc 438 164
+imstat
+
+
+
+$print messages
+task 'prtmsg'
+outprint 'PWD:SELFC.messages
+prtmsg
+clrmsg
+
+
+
+ret; finish
